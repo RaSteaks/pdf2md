@@ -15,9 +15,16 @@ pdf2md/scripts/convert.py
 依赖：pymupdf  (pip install pymupdf)
 """
 
+import io
 import sys
 import fitz  # pymupdf
 from pathlib import Path
+
+# Windows 控制台默认 GBK 编码，遇到版权符号 © 等特殊字符会崩溃
+# 强制将 stdout/stderr 切换为 UTF-8，errors='replace' 保证不中断运行
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 
 def convert(pdf_path_str: str) -> None:
@@ -80,14 +87,13 @@ def convert(pdf_path_str: str) -> None:
             img_filename = f"img_{img_counter:03d}.png"
             img_filepath = img_dir / img_filename
 
-            if img_ext == "png":
-                img_filepath.write_bytes(img_bytes)
-            else:
-                # 非 PNG 格式通过 Pixmap 转换，同时处理 CMYK (n>4) → RGB
-                pix = fitz.Pixmap(img_bytes)
-                if pix.n > 4:
-                    pix = fitz.Pixmap(fitz.csRGB, pix)
-                pix.save(str(img_filepath))
+            # 统一通过 Pixmap 处理，不直接写原始字节
+            # PNG 不支持 CMYK/DeviceN，必须先转 sRGB，否则抛 ValueError
+            pix = fitz.Pixmap(img_bytes)
+            if pix.colorspace and pix.colorspace not in (fitz.csGRAY, fitz.csRGB):
+                # CMYK、DeviceN、ICCBased 等工业级色彩空间 → sRGB
+                pix = fitz.Pixmap(fitz.csRGB, pix)
+            pix.save(str(img_filepath))
 
             # Markdown 中使用正斜杠（在 Windows 渲染器中也有效）
             md_lines.append(f"\n\n![image](images/{img_filename})")

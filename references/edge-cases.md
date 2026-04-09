@@ -44,11 +44,26 @@ for page_num, page in enumerate(pages, start=1):
 
 ---
 
-## 中文 / CJK 内容
+## 中文 / CJK 内容及控制台编码崩溃（GBK）
 
-pymupdf 原生支持 Unicode，`write_text(encoding="utf-8")` 确保输出文件编码正确。
+**现象**：含 `©`、`™` 等特殊字符时 Python 控制台抛出 `UnicodeEncodeError: 'gbk' codec can't encode`
 
-Windows 终端可能显示乱码，但 `.md` 文件本身内容无误，用 VS Code 打开可正确显示。
+**原因**：Windows 控制台默认 GBK 编码，无法处理部分 Unicode 字符。
+
+**修复**：脚本在 Windows 下自动将 `sys.stdout` / `sys.stderr` 切换为 UTF-8（`errors='replace'`），无法编码的字符替换为 `?` 而不是崩溃。`.md` 输出文件始终为完整 UTF-8，不受影响。
+
+---
+
+## PowerShell 不支持 `&&`
+
+**现象**：`git clone ... && python convert.py` 在 PowerShell 中报语法错误
+
+**原因**：`&&` 是 Bash/CMD 语法，PowerShell 不支持。
+
+**修复**：改用 `;` 连接命令，或在 CMD（`cmd.exe`）中运行：
+```
+python convert.py "file.pdf" ; echo done
+```
 
 ---
 
@@ -64,9 +79,23 @@ mutool clean -ggggz input.pdf repaired.pdf
 
 ---
 
-## CMYK 色彩模式的图片（印刷 PDF 常见）
+## CMYK / DeviceN 色彩空间（工业级 PDF 常见）
 
-脚本检测 `pix.n > 4`（CMYK 通道数为 4，加 alpha 则 > 4），自动转换为 RGB 再保存为 PNG，无需手动干预。
+**现象**：`ValueError: unsupported colorspace for 'png'`
+
+**原因**：PNG 格式不支持 CMYK 或 DeviceN（多通道）色彩空间。FilmLight、印刷行业等专业 PDF 含此类图片。
+
+**修复**：脚本统一通过 `fitz.Pixmap` 处理图片，检测到色彩空间不是 sRGB/灰度时，强制转换为 sRGB 再保存，无需手动干预。
+
+---
+
+## MuPDF ICC 配置文件警告
+
+**现象**：控制台反复输出 `MuPDF error: format error: cmsOpenProfileFromMem failed`
+
+**原因**：PDF 内嵌了老旧或非标准的 ICC 颜色配置文件，MuPDF 底层渲染引擎读取失败。
+
+**影响**：仅为警告，不影响文本提取和图片保存。可安全忽略。
 
 ---
 

@@ -67,6 +67,9 @@ python "{baseDir}/scripts/convert.py" "path\to\file.pdf"
 - 脚本使用 `pathlib.Path`，无需担心 `\` vs `/` 问题
 - 脚本以 `encoding="utf-8"` 写文件，避免 Windows cp1252 乱码
 - PowerShell 中路径含空格须用双引号包裹
+- **PowerShell 不支持 `&&`**，多条命令请用 `;` 连接，例如：`python convert.py "file.pdf" ; echo done`
+- 若控制台出现 `©` 等特殊字符乱码崩溃（GBK），脚本已在 Windows 下自动将 stdout/stderr 切换为 UTF-8，通常无需额外处理
+- MuPDF 输出的 `cmsOpenProfileFromMem failed` 为底层 ICC 配置文件警告，可忽略，不影响转换结果
 
 ## 边缘情况
 
