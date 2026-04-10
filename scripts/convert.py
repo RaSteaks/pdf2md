@@ -27,6 +27,21 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 
+# Windows MAX_PATH = 260 字符；预留父目录路径 + "\images\img_999.png" 约 30 字符的余量
+# 将文件夹/文件名限制在 60 字符以内，超出时截断并附加 "…" 提示
+MAX_NAME_LEN = 60
+
+
+def _safe_name(name: str) -> str:
+    """截断过长的文件名，保留前 MAX_NAME_LEN 个字符并加省略号标记。"""
+    if len(name) <= MAX_NAME_LEN:
+        return name
+    truncated = name[:MAX_NAME_LEN].rstrip()
+    print(f"  WARNING: PDF filename is too long ({len(name)} chars), "
+          f"output folder truncated to: '{truncated}…'")
+    return truncated + "…"
+
+
 def convert(pdf_path_str: str) -> None:
     pdf_path = Path(pdf_path_str).resolve()
 
@@ -34,10 +49,11 @@ def convert(pdf_path_str: str) -> None:
         print(f"ERROR: File not found: {pdf_path}", file=sys.stderr)
         sys.exit(1)
 
-    base_name = pdf_path.stem
-    out_dir   = pdf_path.parent / base_name
-    img_dir   = out_dir / "images"
-    md_path   = out_dir / f"{base_name}.md"
+    original_name = pdf_path.stem
+    base_name     = _safe_name(original_name)
+    out_dir       = pdf_path.parent / base_name
+    img_dir       = out_dir / "images"
+    md_path       = out_dir / f"{base_name}.md"
 
     out_dir.mkdir(parents=True, exist_ok=True)
     img_dir.mkdir(parents=True, exist_ok=True)
@@ -57,7 +73,7 @@ def convert(pdf_path_str: str) -> None:
     total_pages = len(doc)
     img_counter = 0
     md_lines    = [
-        f"# {base_name}\n",
+        f"# {original_name}\n",          # 标题保留完整原始文件名
         f"*Converted from `{pdf_path.name}` — {total_pages} page(s)*\n",
     ]
 

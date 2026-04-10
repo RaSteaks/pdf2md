@@ -54,6 +54,16 @@ for page_num, page in enumerate(pages, start=1):
 
 ---
 
+## 长文件名导致路径超出 MAX_PATH（Windows）
+
+**现象**：路径超过 260 字符时，Python 或 PowerShell 报 `FileNotFoundError` 或路径截断错误。
+
+**原因**：Windows 默认 MAX_PATH = 260 字符，深层目录 + 长文件名容易触发上限。
+
+**修复**：脚本自动将输出文件夹/文件名截断至 60 字符（超出时打印警告），Markdown 标题内仍保留完整原始文件名。
+
+---
+
 ## PowerShell 不支持 `&&`
 
 **现象**：`git clone ... && python convert.py` 在 PowerShell 中报语法错误
