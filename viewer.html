@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>pdf2md Viewer</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; color: #111; background: #fafafa; }
+    header { padding: 16px 24px; border-bottom: 1px solid #ddd; background: #fff; }
+    main { max-width: 920px; margin: 0 auto; padding: 24px; background: #fff; min-height: 100vh; }
+    pre, code { background: #f3f3f3; border-radius: 4px; }
+    pre { overflow-x: auto; padding: 12px; }
+    blockquote { border-left: 4px solid #bbb; margin-left: 0; padding-left: 16px; color: #444; }
+    img { max-width: 100%; height: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #999; padding: 6px 8px; vertical-align: top; }
+    th { background: #f3f3f3; }
+    .error { color: #9d1c1c; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>pdf2md Viewer</strong>
+  </header>
+  <main id="app">Loading...</main>
+  <script>
+    const app = document.getElementById("app");
+    const params = new URLSearchParams(location.search);
+    const doc = params.get("doc") || "full.md";
+
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function sanitizeTable(html) {
+      const template = document.createElement("template");
+      template.innerHTML = html;
+      template.content.querySelectorAll("script, iframe, object, embed, link, meta").forEach(node => node.remove());
+      template.content.querySelectorAll("*").forEach(node => {
+        [...node.attributes].forEach(attr => {
+          if (attr.name.startsWith("on") || attr.name === "style") node.removeAttribute(attr.name);
+          if ((attr.name === "href" || attr.name === "src") && /^javascript:/i.test(attr.value)) {
+            node.removeAttribute(attr.name);
+          }
+        });
+      });
+      return template.innerHTML;
+    }
+
+    function inlineMarkdown(text, baseUrl) {
+      let value = escapeHtml(text);
+      value = value.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+        const url = new URL(src, baseUrl).href;
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">`;
+      });
+      value = value.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
+        const url = new URL(href, baseUrl).href;
+        return `<a href="${escapeHtml(url)}">${escapeHtml(label)}</a>`;
+      });
+      value = value.replace(/`([^`]+)`/g, "<code>$1</code>");
+      return value;
+    }
+
+    function renderMarkdown(markdown, baseUrl) {
+      const tableBlocks = [];
+      markdown = markdown.replace(/<table[\s\S]*?<\/table>/gi, block => {
+        tableBlocks.push(sanitizeTable(block));
+        return `\n@@TABLE_${tableBlocks.length - 1}@@\n`;
+      });
+
+      const lines = markdown.split(/\r?\n/);
+      const out = [];
+      let inList = false;
+      let inCode = false;
+      let codeLines = [];
+      for (const line of lines) {
+        if (/^```/.test(line)) {
+          if (inCode) {
+            out.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+            codeLines = [];
+            inCode = false;
+          } else {
+            if (inList) { out.push("</ul>"); inList = false; }
+            inCode = true;
+          }
+        } else if (inCode) {
+          codeLines.push(line);
+        } else if (/^#{1,6}\s+/.test(line)) {
+          if (inList) { out.push("</ul>"); inList = false; }
+          const level = line.match(/^#+/)[0].length;
+          out.push(`<h${level}>${inlineMarkdown(line.replace(/^#{1,6}\s+/, ""), baseUrl)}</h${level}>`);
+        } else if (/^-\s+/.test(line)) {
+          if (!inList) { out.push("<ul>"); inList = true; }
+          out.push(`<li>${inlineMarkdown(line.replace(/^-\s+/, ""), baseUrl)}</li>`);
+        } else if (/^\s*$/.test(line)) {
+          if (inList) { out.push("</ul>"); inList = false; }
+        } else if (/^@@TABLE_\d+@@$/.test(line.trim())) {
+          if (inList) { out.push("</ul>"); inList = false; }
+          const index = Number(line.trim().match(/\d+/)[0]);
+          out.push(tableBlocks[index]);
+        } else if (/^<!--.*-->$/.test(line.trim())) {
+          out.push(line);
+        } else {
+          if (inList) { out.push("</ul>"); inList = false; }
+          out.push(`<p>${inlineMarkdown(line, baseUrl)}</p>`);
+        }
+      }
+      if (inList) out.push("</ul>");
+      if (inCode) out.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+      return out.join("\n");
+    }
+
+    fetch(doc, { credentials: "same-origin" })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        return response.text().then(text => ({ text, url: response.url }));
+      })
+      .then(({ text, url }) => { app.innerHTML = renderMarkdown(text, url); })
+      .catch(error => { app.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; });
+  </script>
+</body>
+</html>
