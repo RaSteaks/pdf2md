@@ -1,5 +1,7 @@
 # pdf2md
 
+[English README](README.md)
+
 `pdf2md` 是一个 OpenClaw Skill 和 Python 命令行工具，用于把 PDF 转换成结构化 Markdown 文档包。它优先使用 PDF 自带文本层，导出嵌入图片，把高风险复杂表格保存为独立 HTML，并生成 `manifest.json` 与 `checksums.json`，方便 agent 在本地或通过 HTTP 安全读取。
 
 ## 安装
@@ -175,6 +177,8 @@ http://127.0.0.1:8000/output/my-doc/tables/table-1.html
 ```text
 http://127.0.0.1:8000/viewer.html?doc=output/my-doc/full.md
 ```
+
+`viewer.html` 不是测试文件。它是一个可选的本地预览工具，用于在浏览器中打开生成的 Markdown、解析相对图片路径，并展示内联 HTML 表格。RAG/知识库入库流程不需要摄取或部署它。
 
 也可以把输出目录发布到 MkDocs、VitePress、Docsify 或 GitHub Pages。
 

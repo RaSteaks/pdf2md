@@ -1,5 +1,7 @@
 # pdf2md
 
+[中文文档](README.zh-CN.md)
+
 `pdf2md` is an OpenClaw skill and Python CLI for converting PDF files into structured Markdown document packages. It keeps the PDF text layer as the primary source, exports embedded figures as image assets, routes risky tables to standalone HTML, and writes a manifest plus checksums so agents can read the result locally or over HTTP.
 
 ## Install
@@ -134,6 +136,8 @@ Markdown does not render natively in every browser. A minimal viewer is included
 ```text
 http://127.0.0.1:8000/viewer.html?doc=output/my-doc/full.md
 ```
+
+`viewer.html` is not a test file. It is an optional local preview utility for opening generated Markdown through a browser, resolving relative image paths, and displaying inline HTML tables. RAG ingestion pipelines do not need to ingest or deploy it.
 
 Alternatively, publish the output through MkDocs, VitePress, Docsify, or GitHub Pages. Safari and Edge can directly open the standalone HTML table pages.
 
